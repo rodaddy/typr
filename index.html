@@ -8,6 +8,79 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/src/style.css" />
+    <style>
+      #stream-output {
+        flex: 1;
+        min-height: 0;
+        background: #0d1117;
+        color: #c9d1d9;
+        font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Menlo', monospace;
+        font-size: 13px;
+        line-height: 1.7;
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 8px;
+        padding: 16px;
+        resize: none;
+        outline: none;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      #section-stream.active {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      #section-stream .section-header {
+        flex-shrink: 0;
+      }
+      .stream-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 24px 16px;
+        flex-shrink: 0;
+      }
+      .stream-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #444;
+        transition: background 0.3s ease, box-shadow 0.3s ease;
+        flex-shrink: 0;
+      }
+      .stream-dot.active {
+        background: #4caf50;
+        box-shadow: 0 0 8px rgba(76, 175, 80, 0.6);
+        animation: stream-pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes stream-pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+      }
+      .stream-label {
+        font-size: 12px;
+        color: #666;
+        flex: 1;
+      }
+      .stream-label.active {
+        color: #4caf50;
+      }
+      .stream-text-wrapper {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 0 24px 24px;
+      }
+      #clear-stream-btn {
+        font-size: 11px;
+        padding: 4px 10px;
+        opacity: 0.6;
+      }
+      #clear-stream-btn:hover {
+        opacity: 1;
+      }
+    </style>
   </head>
   <body>
     <div id="app">
@@ -28,7 +101,15 @@
           </div>
         </div>
         <nav id="sidebar-nav">
-          <a class="nav-item active" data-section="general">
+          <a class="nav-item active" data-section="stream">
+            <svg class="nav-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M1 8c0-3.866 3.134-7 7-7s7 3.134 7 7-3.134 7-7 7-7-3.134-7-7z" stroke="currentColor" stroke-width="1.2"/>
+              <path d="M5 8c0-1.657 1.343-3 3-3s3 1.343 3 3-1.343 3-3 3-3-1.343-3-3z" stroke="currentColor" stroke-width="1.2"/>
+              <circle cx="8" cy="8" r="1.2" fill="currentColor"/>
+            </svg>
+            Live Transcript
+          </a>
+          <a class="nav-item" data-section="general">
             <svg class="nav-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
               <circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/>
               <path d="M8 5v3l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -48,6 +129,13 @@
             </svg>
             Recording
           </a>
+          <a class="nav-item" data-section="output">
+            <svg class="nav-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M3 4h10M3 8h7M3 12h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+              <path d="M12 10l2 2-2 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Output
+          </a>
         </nav>
         <div class="sidebar-footer">
           <span class="version-text">v0.1.0</span>
@@ -55,7 +143,24 @@
       </aside>
 
       <main id="content">
-        <section id="section-general" class="content-section active">
+        <section id="section-stream" class="content-section active">
+          <div class="section-header">
+            <h2 class="section-title">Live Transcript</h2>
+            <p class="section-desc">Real-time speech transcription via whisper-stream</p>
+          </div>
+          <div class="stream-controls">
+            <div class="stream-dot" id="stream-dot"></div>
+            <span class="stream-label" id="stream-label">Stopped</span>
+            <button id="clear-stream-btn" class="btn-secondary">Clear</button>
+            <button id="stop-stream-btn" class="btn-secondary hidden">Stop</button>
+            <button id="start-stream-btn" class="btn-primary">Start Streaming</button>
+          </div>
+          <div class="stream-text-wrapper">
+            <textarea id="stream-output" readonly placeholder="Transcription will appear here as you speak..."></textarea>
+          </div>
+        </section>
+
+        <section id="section-general" class="content-section">
           <div class="section-header">
             <h2 class="section-title">General</h2>
             <p class="section-desc">Configure your audio input device</p>
@@ -99,6 +204,7 @@
               <div class="setting-control">
                 <div class="model-row">
                   <select id="model-select">
+                    <option value="base.en">Base EN (~142 MB, fastest)</option>
                     <option value="small">Small (~466 MB)</option>
                     <option value="medium">Medium (~1.5 GB)</option>
                   </select>
@@ -146,6 +252,36 @@
               </div>
               <div class="setting-control">
                 <kbd id="hotkey-text">Cmd+Shift+D</kbd>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section id="section-output" class="content-section">
+          <div class="section-header">
+            <h2 class="section-title">Output</h2>
+            <p class="section-desc">Configure where transcribed text is sent</p>
+          </div>
+          <div class="settings-list">
+            <div class="setting-row">
+              <div class="setting-label">
+                <span class="label-text">Output Mode</span>
+                <span class="label-hint">Clipboard pastes, Document saves to file, Terminal prints to stdout</span>
+              </div>
+              <div class="setting-control">
+                <div class="toggle-group">
+                  <button id="output-clipboard" class="toggle-btn active">Clipboard</button>
+                  <button id="output-document" class="toggle-btn">Document</button>
+                  <button id="output-terminal" class="toggle-btn">Terminal</button>
+                </div>
+              </div>
+            </div>
+            <div class="setting-row" id="output-dir-row">
+              <div class="setting-label">
+                <span class="label-text">Output Directory</span>
+                <span class="label-hint">Daily transcription files saved here</span>
+              </div>
+              <div class="setting-control">
+                <input type="text" id="output-dir" placeholder="~/Documents/Typr/" />
               </div>
             </div>
           </div>

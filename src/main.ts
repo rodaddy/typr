@@ -9,6 +9,10 @@ interface Settings {
   groqApiKey: string;
   recordingMode: string;
   hotkey: string;
+  outputMode: string;
+  outputDir: string;
+  streamStep: number;
+  streamLength: number;
 }
 
 interface MicDevice {
@@ -22,7 +26,7 @@ interface DownloadProgress {
   percent: number;
 }
 
-// DOM elements
+// DOM elements -- settings
 const statusDot = document.getElementById("status-dot")!;
 const statusText = document.getElementById("status-text")!;
 const micSelect = document.getElementById("mic-select") as HTMLSelectElement;
@@ -38,6 +42,19 @@ const groqKey = document.getElementById("groq-key") as HTMLInputElement;
 const modeToggle = document.getElementById("mode-toggle")!;
 const modePtt = document.getElementById("mode-ptt")!;
 const hotkeyText = document.getElementById("hotkey-text")!;
+const outputClipboard = document.getElementById("output-clipboard")!;
+const outputDocument = document.getElementById("output-document")!;
+const outputTerminal = document.getElementById("output-terminal")!;
+const outputDirInput = document.getElementById("output-dir") as HTMLInputElement;
+const outputDirRow = document.getElementById("output-dir-row")!;
+
+// DOM elements -- streaming
+const streamOutput = document.getElementById("stream-output") as HTMLTextAreaElement;
+const startStreamBtn = document.getElementById("start-stream-btn")!;
+const stopStreamBtn = document.getElementById("stop-stream-btn")!;
+const clearStreamBtn = document.getElementById("clear-stream-btn")!;
+const streamDot = document.getElementById("stream-dot")!;
+const streamLabel = document.getElementById("stream-label")!;
 
 // Section navigation
 const navItems = document.querySelectorAll(".nav-item");
@@ -53,7 +70,7 @@ navItems.forEach((item) => {
   });
 });
 
-// Window drag — titlebar and sidebar empty space
+// Window drag -- titlebar and sidebar empty space
 const titlebar = document.getElementById("titlebar")!;
 const sidebar = document.getElementById("sidebar")!;
 const appWindow = getCurrentWindow();
@@ -97,6 +114,10 @@ async function loadSettings() {
   // Recording mode
   setRecordingMode(currentSettings.recordingMode);
 
+  // Output mode
+  setOutputMode(currentSettings.outputMode ?? "clipboard");
+  outputDirInput.value = currentSettings.outputDir ?? "~/Documents/Typr/";
+
   // Hotkey
   hotkeyText.textContent = currentSettings.hotkey.replace("CmdOrCtrl", "Cmd");
 }
@@ -115,11 +136,19 @@ function setRecordingMode(mode: string) {
   modePtt.classList.toggle("active", mode === "push-to-talk");
 }
 
+function setOutputMode(mode: string) {
+  currentSettings.outputMode = mode;
+  outputClipboard.classList.toggle("active", mode === "clipboard");
+  outputDocument.classList.toggle("active", mode === "document");
+  outputTerminal.classList.toggle("active", mode === "terminal");
+  outputDirRow.classList.toggle("hidden", mode !== "document");
+}
+
 async function checkModelStatus() {
   const downloaded = await invoke<boolean>("check_model_downloaded", {
     modelSize: modelSelect.value,
   });
-  downloadBtn.textContent = downloaded ? "\u2713" : "Download";
+  downloadBtn.textContent = downloaded ? "✓" : "Download";
   (downloadBtn as HTMLButtonElement).disabled = downloaded;
 }
 
@@ -127,10 +156,11 @@ async function saveSettings() {
   currentSettings.microphone = micSelect.value;
   currentSettings.whisperModel = modelSelect.value;
   currentSettings.groqApiKey = groqKey.value;
+  currentSettings.outputDir = outputDirInput.value;
   await invoke("save_settings", { settings: currentSettings });
 }
 
-// Event listeners
+// Settings event listeners
 engineLocal.addEventListener("click", () => {
   setEngine("local");
   saveSettings();
@@ -155,7 +185,7 @@ downloadBtn.addEventListener("click", async () => {
 
   try {
     await invoke("download_model", { modelSize: modelSelect.value });
-    downloadBtn.textContent = "\u2713";
+    downloadBtn.textContent = "✓";
   } catch (e) {
     downloadBtn.textContent = "Retry";
     (downloadBtn as HTMLButtonElement).disabled = false;
@@ -175,6 +205,11 @@ modePtt.addEventListener("click", () => {
   setRecordingMode("push-to-talk");
   saveSettings();
 });
+
+outputClipboard.addEventListener("click", () => { setOutputMode("clipboard"); saveSettings(); });
+outputDocument.addEventListener("click", () => { setOutputMode("document"); saveSettings(); });
+outputTerminal.addEventListener("click", () => { setOutputMode("terminal"); saveSettings(); });
+outputDirInput.addEventListener("change", () => saveSettings());
 
 // Listen for recording state changes
 listen<string>("recording-state", (event) => {
@@ -198,5 +233,70 @@ listen<DownloadProgress>("download-progress", (event) => {
   progressFill.style.width = `${percent}%`;
 });
 
-// Initialize
+// --- Streaming ---
+
+function setStreamingUI(streaming: boolean) {
+  if (streaming) {
+    streamDot.classList.add("active");
+    streamLabel.textContent = "Streaming...";
+    streamLabel.classList.add("active");
+    startStreamBtn.classList.add("hidden");
+    stopStreamBtn.classList.remove("hidden");
+    statusDot.className = "streaming";
+    statusText.textContent = "Streaming...";
+  } else {
+    streamDot.classList.remove("active");
+    streamLabel.textContent = "Stopped";
+    streamLabel.classList.remove("active");
+    startStreamBtn.classList.remove("hidden");
+    stopStreamBtn.classList.add("hidden");
+    statusDot.className = "ready";
+    statusText.textContent = "Ready";
+  }
+}
+
+startStreamBtn.addEventListener("click", async () => {
+  try {
+    await invoke("start_stream");
+    setStreamingUI(true);
+  } catch (e) {
+    console.error("Failed to start stream:", e);
+    alert(`Failed to start streaming: ${e}`);
+  }
+});
+
+stopStreamBtn.addEventListener("click", async () => {
+  try {
+    await invoke("stop_stream");
+    setStreamingUI(false);
+  } catch (e) {
+    console.error("Failed to stop stream:", e);
+  }
+});
+
+clearStreamBtn.addEventListener("click", () => {
+  streamOutput.value = "";
+});
+
+listen<string>("stream-text", (event) => {
+  const text = event.payload;
+  const atBottom =
+    streamOutput.scrollHeight - streamOutput.scrollTop <=
+    streamOutput.clientHeight + 20;
+  streamOutput.value += text + "\n";
+  if (atBottom) {
+    streamOutput.scrollTop = streamOutput.scrollHeight;
+  }
+});
+
+listen<null>("stream-stopped", () => {
+  setStreamingUI(false);
+});
+
+// Sync initial streaming state on load
+invoke<boolean>("is_streaming").then((streaming) => {
+  if (streaming) setStreamingUI(true);
+});
+
+// Initialize settings
 loadSettings();

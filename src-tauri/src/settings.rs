@@ -2,6 +2,11 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+fn default_output_mode() -> String { "clipboard".to_string() }
+fn default_output_dir() -> String { "~/Documents/Typr/".to_string() }
+fn default_stream_step() -> u32 { 5000 }
+fn default_stream_length() -> u32 { 15000 }
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Settings {
     pub microphone: String,
@@ -13,6 +18,14 @@ pub struct Settings {
     #[serde(rename = "recordingMode")]
     pub recording_mode: String,
     pub hotkey: String,
+    #[serde(rename = "outputMode", default = "default_output_mode")]
+    pub output_mode: String,
+    #[serde(rename = "outputDir", default = "default_output_dir")]
+    pub output_dir: String,
+    #[serde(rename = "streamStep", default = "default_stream_step")]
+    pub stream_step: u32,
+    #[serde(rename = "streamLength", default = "default_stream_length")]
+    pub stream_length: u32,
 }
 
 impl Default for Settings {
@@ -24,6 +37,10 @@ impl Default for Settings {
             groq_api_key: String::new(),
             recording_mode: "toggle".to_string(),
             hotkey: "CmdOrCtrl+Shift+Space".to_string(),
+            output_mode: default_output_mode(),
+            output_dir: default_output_dir(),
+            stream_step: default_stream_step(),
+            stream_length: default_stream_length(),
         }
     }
 }
@@ -63,6 +80,8 @@ mod tests {
         assert_eq!(settings.groq_api_key, "");
         assert_eq!(settings.recording_mode, "toggle");
         assert_eq!(settings.hotkey, "CmdOrCtrl+Shift+Space");
+        assert_eq!(settings.output_mode, "clipboard");
+        assert_eq!(settings.output_dir, "~/Documents/Typr/");
     }
 
     #[test]

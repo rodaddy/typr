@@ -9,6 +9,8 @@
         overflow: hidden;
         user-select: none;
         -webkit-user-select: none;
+        /* Ensure clicks are NOT passed through */
+        pointer-events: auto;
       }
       body {
         display: flex;
@@ -20,7 +22,8 @@
         width: 40px;
         height: 40px;
         border-radius: 50%;
-        background: rgba(30, 30, 30, 0.85);
+        /* Fully opaque background so macOS delivers clicks */
+        background: rgba(30, 30, 30, 1.0);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -35,22 +38,54 @@
         fill: #888;
         transition: fill 0.3s ease;
       }
+      /* Legacy fallback for recording state */
       .mic.recording {
+        background: rgba(255, 152, 0, 0.9);
+        border-color: rgba(255, 152, 0, 0.5);
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      .mic.recording svg { fill: #fff; }
+
+      /* Document mode -- green */
+      .mic.recording-document {
+        background: rgba(76, 175, 80, 0.9);
+        border-color: rgba(76, 175, 80, 0.5);
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      .mic.recording-document svg { fill: #fff; }
+
+      /* Clipboard mode -- orange */
+      .mic.recording-clipboard {
+        background: rgba(255, 152, 0, 0.9);
+        border-color: rgba(255, 152, 0, 0.5);
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      .mic.recording-clipboard svg { fill: #fff; }
+
+      /* Terminal mode -- red */
+      .mic.recording-terminal {
         background: rgba(244, 67, 54, 0.9);
         border-color: rgba(244, 67, 54, 0.5);
         animation: pulse 1.2s ease-in-out infinite;
       }
-      .mic.recording svg {
-        fill: #fff;
-      }
+      .mic.recording-terminal svg { fill: #fff; }
+
+      /* Transcribing -- always blue */
       .mic.transcribing {
-        background: rgba(255, 152, 0, 0.9);
-        border-color: rgba(255, 152, 0, 0.5);
+        background: rgba(33, 150, 243, 0.9);
+        border-color: rgba(33, 150, 243, 0.5);
         animation: pulse 1.5s ease-in-out infinite;
       }
       .mic.transcribing svg {
         fill: #fff;
       }
+      /* Streaming -- green */
+      .mic.streaming {
+        background: rgba(76, 175, 80, 0.9);
+        border-color: rgba(76, 175, 80, 0.5);
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      .mic.streaming svg { fill: #fff; }
       @keyframes pulse {
         0%, 100% { transform: scale(1); opacity: 1; }
         50% { transform: scale(1.15); opacity: 0.8; }
@@ -64,5 +99,26 @@
         <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
       </svg>
     </div>
+    <script>
+      const mic = document.getElementById('mic');
+      mic.style.cursor = 'pointer';
+      mic.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('[Typr overlay] Click detected');
+        if (window.__TAURI__ && window.__TAURI__.core) {
+          try {
+            const result = await window.__TAURI__.core.invoke('toggle_recording');
+            console.log('[Typr overlay] Toggle result:', result);
+          } catch (err) {
+            console.error('[Typr overlay] Toggle failed:', err);
+          }
+        } else {
+          console.error('[Typr overlay] __TAURI__ API not available!');
+        }
+      });
+      // Log on load to confirm script runs
+      console.log('[Typr overlay] Script loaded, __TAURI__ available:', !!window.__TAURI__);
+    </script>
   </body>
 </html>
