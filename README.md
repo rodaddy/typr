@@ -1,5 +1,7 @@
 # Typr
 
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/rodaddy)
+
 Real-time voice transcription app with local whisper.cpp engine, live streaming transcript, and AI earpiece coaching pipeline.
 
 Built on [Tauri 2](https://tauri.app/) (Rust + TypeScript) with [whisper.cpp](https://github.com/ggerganov/whisper.cpp) for on-device speech recognition. No cloud APIs required.
